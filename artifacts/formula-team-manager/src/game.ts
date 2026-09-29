@@ -46,14 +46,51 @@ export type RaceResult = {
   headline: string;
 };
 
+export type RaceResolution = {
+  cash: number;
+  round: number;
+  driverPoints: Record<string, number>;
+  constructorPoints: number;
+  history: RaceResult[];
+  randomSeed: number;
+};
+
+export type PendingRace = {
+  startedAt: number;
+  durationMs: number;
+  result: RaceResult;
+  resolution: RaceResolution;
+  snapshots: string[][];
+};
+
+export type RaceProgress = {
+  elapsedMs: number;
+  remainingMs: number;
+  fraction: number;
+  lap: number;
+  snapshotIndex: number;
+  positions: string[];
+  previousPositions: string[];
+};
+
 export type CarStats = {
   pace: number;
   aero: number;
   reliability: number;
 };
 
+export type F1Team = {
+  id: string;
+  name: string;
+  shortName: string;
+  base: string;
+  accent: string;
+  secondary: string;
+};
+
 export type GameState = {
   teamName: string;
+  selectedTeamId: string | null;
   cash: number;
   drivers: string[];
   car: CarStats;
@@ -62,6 +99,7 @@ export type GameState = {
   constructorPoints: number;
   history: RaceResult[];
   randomSeed: number;
+  pendingRace: PendingRace | null;
 };
 
 export type ActionResult = {
@@ -72,6 +110,22 @@ export type ActionResult = {
 export const SAVE_KEY = "formula-team-manager-save-v1";
 export const STARTING_CASH = 8_500_000;
 export const SEASON_LENGTH = 8;
+export const RACE_DURATION_MS = 60_000;
+const RACE_SNAPSHOT_COUNT = 61;
+
+export const CURRENT_F1_TEAMS: F1Team[] = [
+  { id: "mclaren", name: "McLaren", shortName: "MCL", base: "Woking, United Kingdom", accent: "#ff8000", secondary: "#111820" },
+  { id: "mercedes", name: "Mercedes", shortName: "MER", base: "Brackley, United Kingdom", accent: "#00a19b", secondary: "#101820" },
+  { id: "red-bull-racing", name: "Red Bull Racing", shortName: "RBR", base: "Milton Keynes, United Kingdom", accent: "#3671c6", secondary: "#e10600" },
+  { id: "ferrari", name: "Ferrari", shortName: "FER", base: "Maranello, Italy", accent: "#e8002d", secondary: "#fff4e8" },
+  { id: "williams", name: "Williams", shortName: "WIL", base: "Grove, United Kingdom", accent: "#00a0de", secondary: "#101820" },
+  { id: "racing-bulls", name: "Racing Bulls", shortName: "VCARB", base: "Faenza, Italy", accent: "#6692ff", secondary: "#f3f5f7" },
+  { id: "aston-martin", name: "Aston Martin", shortName: "AMR", base: "Silverstone, United Kingdom", accent: "#00665e", secondary: "#d9c58a" },
+  { id: "haas", name: "Haas F1 Team", shortName: "HAA", base: "Kannapolis, United States", accent: "#e6002d", secondary: "#202329" },
+  { id: "audi", name: "Audi", shortName: "AUD", base: "Hinwil, Switzerland", accent: "#bb0a30", secondary: "#d2d5d8" },
+  { id: "alpine", name: "Alpine", shortName: "ALP", base: "Enstone, United Kingdom", accent: "#0093cc", secondary: "#ef4b91" },
+  { id: "cadillac", name: "Cadillac", shortName: "CAD", base: "Fishers, United States", accent: "#273746", secondary: "#c7ad7f" },
+];
 
 export const DRIVERS: Driver[] = [
   {
@@ -185,9 +239,10 @@ const RIVALS = [
 ];
 const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 
-export function createNewGame(teamName = "Apex GP"): GameState {
+export function createNewGame(teamName = "Your Team"): GameState {
   return {
-    teamName: teamName.trim().slice(0, 24) || "Apex GP",
+    teamName: teamName.trim().slice(0, 24) || "Your Team",
+    selectedTeamId: null,
     cash: STARTING_CASH,
     drivers: [],
     car: { pace: 64, aero: 62, reliability: 68 },
@@ -196,7 +251,32 @@ export function createNewGame(teamName = "Apex GP"): GameState {
     constructorPoints: 0,
     history: [],
     randomSeed: Math.floor(Math.random() * 2_000_000_000) || 1,
+    pendingRace: null,
   };
+}
+
+function isPendingRace(value: unknown): value is PendingRace {
+  if (!value || typeof value !== "object") return false;
+  const pending = value as Partial<PendingRace>;
+  if (
+    !Number.isFinite(pending.startedAt) ||
+    pending.durationMs !== RACE_DURATION_MS ||
+    !Array.isArray(pending.snapshots) ||
+    pending.snapshots.length !== RACE_SNAPSHOT_COUNT ||
+    !pending.snapshots.every((snapshot) => Array.isArray(snapshot) && snapshot.every((id) => typeof id === "string")) ||
+    !pending.result ||
+    !Array.isArray(pending.result.finishers) ||
+    !pending.result.track ||
+    !pending.resolution
+  ) return false;
+  const resolution = pending.resolution;
+  return Number.isFinite(resolution.cash) &&
+    Number.isFinite(resolution.round) &&
+    Number.isFinite(resolution.constructorPoints) &&
+    Number.isFinite(resolution.randomSeed) &&
+    Array.isArray(resolution.history) &&
+    !!resolution.driverPoints &&
+    typeof resolution.driverPoints === "object";
 }
 
 export function loadGame(): GameState {
@@ -212,7 +292,14 @@ export function loadGame(): GameState {
         Number.isFinite(parsed.round) &&
         Array.isArray(parsed.history)
       ) {
-        return parsed;
+        const teamId = CURRENT_F1_TEAMS.some((team) => team.id === parsed.selectedTeamId)
+          ? parsed.selectedTeamId
+          : null;
+        return {
+          ...parsed,
+          selectedTeamId: teamId,
+          pendingRace: isPendingRace(parsed.pendingRace) ? parsed.pendingRace : null,
+        };
       }
     }
   } catch {
@@ -227,6 +314,24 @@ export function saveGame(state: GameState): void {
 
 export function getDriver(id: string): Driver | undefined {
   return DRIVERS.find((driver) => driver.id === id);
+}
+
+export function getF1Team(id: string | null | undefined): F1Team | undefined {
+  return id ? CURRENT_F1_TEAMS.find((team) => team.id === id) : undefined;
+}
+
+export function selectF1Team(state: GameState, teamId: string): ActionResult {
+  const team = getF1Team(teamId);
+  if (!team) return { state, error: "That F1 team is not available." };
+  if (state.pendingRace) return { state, error: "Finish the live race before changing teams." };
+  if (state.round > 0) return { state, error: "Your team is locked once the season has started. Start a new season to choose again." };
+  return {
+    state: {
+      ...state,
+      selectedTeamId: team.id,
+      teamName: team.name,
+    },
+  };
 }
 
 export function currentTrack(state: GameState): Track | undefined {
@@ -272,6 +377,7 @@ export function estimatedWinChance(driverId: string, state: GameState): number {
 }
 
 export function hireDriver(state: GameState, driverId: string): ActionResult {
+  if (state.pendingRace) return { state, error: "Finish the live race before changing drivers." };
   const driver = getDriver(driverId);
   if (!driver) return { state, error: "That driver is no longer available." };
   if (state.drivers.includes(driverId)) return { state, error: "That driver is already signed." };
@@ -287,6 +393,7 @@ export function hireDriver(state: GameState, driverId: string): ActionResult {
 }
 
 export function buyUpgrade(state: GameState, upgradeId: keyof CarStats): ActionResult {
+  if (state.pendingRace) return { state, error: "Finish the live race before developing the car." };
   const upgrade = UPGRADES.find((item) => item.id === upgradeId);
   if (!upgrade) return { state, error: "That upgrade is unavailable." };
   if (state.cash < upgrade.cost) return { state, error: "Not enough cash for this upgrade." };
@@ -301,6 +408,7 @@ export function buyUpgrade(state: GameState, upgradeId: keyof CarStats): ActionR
 }
 
 export function runRace(state: GameState, strategy: RaceStrategy): { state: GameState; result?: RaceResult; error?: string } {
+  if (state.pendingRace) return { state, error: "A race is already in progress." };
   const track = currentTrack(state);
   if (!track) return { state, error: "The season is already complete." };
   if (state.drivers.length < 2) return { state, error: "Sign two drivers before starting the race." };
@@ -387,7 +495,85 @@ export function runRace(state: GameState, strategy: RaceStrategy): { state: Game
       constructorPoints: state.constructorPoints + teamPoints,
       history: [...state.history, result],
       randomSeed: seed,
+      pendingRace: null,
     },
     result,
+  };
+}
+
+function createRaceSnapshots(finishers: RaceFinisher[], initialSeed: number): string[][] {
+  let seed = (Math.abs(Math.floor(initialSeed)) % 2_147_483_646) + 1;
+  const random = () => {
+    seed = (seed * 48_271) % 2_147_483_647;
+    return seed / 2_147_483_647;
+  };
+  return Array.from({ length: RACE_SNAPSHOT_COUNT }, (_, tick) => {
+    const remaining = 1 - tick / (RACE_SNAPSHOT_COUNT - 1);
+    return finishers
+      .map((finisher, index) => ({
+        id: finisher.id,
+        pace: -index * 6 + (random() - 0.5) * 34 * remaining + Math.sin(tick * 0.83 + index * 1.71) * 5 * remaining,
+      }))
+      .sort((a, b) => b.pace - a.pace)
+      .map((entry) => entry.id);
+  });
+}
+
+export function startRace(state: GameState, strategy: RaceStrategy, startedAt = Date.now()): ActionResult {
+  const outcome = runRace(state, strategy);
+  if (outcome.error || !outcome.result) return { state, error: outcome.error ?? "Could not start the race." };
+  const { result } = outcome;
+  return {
+    state: {
+      ...state,
+      pendingRace: {
+        startedAt,
+        durationMs: RACE_DURATION_MS,
+        result,
+        snapshots: createRaceSnapshots(result.finishers, state.randomSeed),
+        resolution: {
+          cash: outcome.state.cash,
+          round: outcome.state.round,
+          driverPoints: outcome.state.driverPoints,
+          constructorPoints: outcome.state.constructorPoints,
+          history: outcome.state.history,
+          randomSeed: outcome.state.randomSeed,
+        },
+      },
+    },
+  };
+}
+
+export function getRaceProgress(pendingRace: PendingRace, now = Date.now()): RaceProgress {
+  const elapsedMs = Math.max(0, Math.min(pendingRace.durationMs, now - pendingRace.startedAt));
+  const fraction = elapsedMs / pendingRace.durationMs;
+  const snapshotIndex = Math.min(
+    pendingRace.snapshots.length - 1,
+    Math.floor(fraction * (pendingRace.snapshots.length - 1)),
+  );
+  return {
+    elapsedMs,
+    remainingMs: pendingRace.durationMs - elapsedMs,
+    fraction,
+    lap: Math.floor(fraction * pendingRace.result.track.laps),
+    snapshotIndex,
+    positions: pendingRace.snapshots[snapshotIndex] ?? [],
+    previousPositions: pendingRace.snapshots[Math.max(0, snapshotIndex - 1)] ?? [],
+  };
+}
+
+export function finishRace(state: GameState, now = Date.now()): { state: GameState; result?: RaceResult; error?: string } {
+  const pendingRace = state.pendingRace;
+  if (!pendingRace) return { state, error: "There is no live race to finish." };
+  if (now - pendingRace.startedAt < pendingRace.durationMs) {
+    return { state, error: "The race is still in progress." };
+  }
+  return {
+    state: {
+      ...state,
+      ...pendingRace.resolution,
+      pendingRace: null,
+    },
+    result: pendingRace.result,
   };
 }

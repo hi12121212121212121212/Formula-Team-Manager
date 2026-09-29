@@ -170,7 +170,7 @@
 .app-frame { display: grid; grid-template-columns: 236px minmax(0, 1fr); min-height: calc(100dvh - 5px); max-width: 1800px; margin: 0 auto; }
 .sidebar { background: hsl(var(--sidebar)); color: hsl(var(--sidebar-foreground)); display: flex; flex-direction: column; padding: 25px 16px 18px; position: sticky; top: 0; height: 100dvh; min-height: 690px; z-index: 5; }
 .brand-lockup { display: flex; align-items: center; gap: 11px; padding: 0 10px 29px; }
-.brand-mark { width: 38px; height: 36px; color: #f6eee2; background: hsl(var(--primary)); display: grid; place-items: center; position: relative; clip-path: polygon(0 0, 100% 0, 100% 70%, 72% 100%, 0 100%); font: 700 17px var(--app-font-display); letter-spacing: -.05em; }
+.brand-mark { width: 38px; height: 36px; color: #f6eee2; background: var(--team-accent, hsl(var(--primary))); display: grid; place-items: center; position: relative; clip-path: polygon(0 0, 100% 0, 100% 70%, 72% 100%, 0 100%); font: 700 17px var(--app-font-display); letter-spacing: -.05em; }
 .brand-mark i { width: 11px; height: 2px; background: #f4c873; position: absolute; bottom: 6px; right: 5px; }
 .brand-title { color: #f3eee5; font: 700 13px var(--app-font-display); letter-spacing: .1em; line-height: 1; }
 .brand-subtitle { font: 9px var(--app-font-mono); color: hsl(38 17% 63%); letter-spacing: .12em; margin-top: 6px; }
@@ -178,6 +178,9 @@
 .side-kicker,.eyebrow { color: hsl(var(--muted-foreground)); font: 500 9px var(--app-font-mono); letter-spacing: .14em; }
 .sidebar .side-kicker { color: hsl(38 12% 59%); }
 .side-team { font: 600 21px var(--app-font-display); color: #f8f1e7; margin-top: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sidebar-team-line { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sidebar-team-mark { flex: 0 0 auto; display: grid; place-items: center; min-width: 30px; height: 26px; padding: 0 4px; color: #fff; background: var(--team-accent, hsl(var(--primary))); font: 700 9px var(--app-font-mono); letter-spacing: -.04em; }
+.sidebar-team-line .side-team { min-width: 0; }
 .season-progress { display: flex; align-items: center; gap: 10px; color: #eee4d7; font: 11px var(--app-font-mono); margin-top: 15px; }
 .season-progress em { color: hsl(38 12% 55%); font-style: normal; }
 .progress-track { height: 4px; flex: 1; background: hsl(218 18% 29%); border-radius: 9px; overflow: hidden; }
@@ -185,7 +188,8 @@
 .main-nav { padding: 24px 0 0; }
 .nav-kicker { padding: 0 11px; margin-bottom: 10px; }
 .nav-item { display: flex; align-items: center; gap: 12px; position: relative; width: 100%; border: 0; padding: 11px 12px; border-radius: 7px; background: transparent; color: hsl(37 12% 70%); text-align: left; font-size: 12px; font-weight: 500; transition: color .16s, background .16s, transform .16s; margin: 2px 0; }
-.nav-item:hover { background: hsl(218 20% 21%); color: #f7efe4; transform: translateX(2px); }
+.nav-item:hover:not(:disabled) { background: hsl(218 20% 21%); color: #f7efe4; transform: translateX(2px); }
+.nav-item:disabled { opacity: .36; cursor: not-allowed; }
 .nav-item.is-active { color: #fff7eb; background: hsl(218 22% 22%); }
 .nav-item.is-active::before { content: ""; position: absolute; left: 0; top: 9px; bottom: 9px; width: 2px; background: hsl(var(--primary)); }
 .nav-item.is-active svg { color: #ed7966; }
@@ -206,6 +210,7 @@
 .round-indicator small { color: hsl(var(--muted-foreground)); font-size: 10px; }
 .icon-action,.save-button { height: 36px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid hsl(var(--border)); color: hsl(var(--foreground)); background: hsl(var(--card)); border-radius: 7px; }
 .icon-action { width: 36px; }
+.icon-action:disabled { opacity: .45; cursor: not-allowed; }
 .save-button { gap: 8px; padding: 0 13px; font-size: 11px; font-weight: 600; }
 .save-button svg { color: hsl(var(--primary)); }
 .mobile-brand { display: none; }
@@ -232,6 +237,7 @@
 .app-footer i { color: hsl(var(--primary)); font-style: normal; padding: 0 4px; }
 .app-footer button { color: hsl(var(--muted-foreground)); background: none; border: 0; display: flex; gap: 4px; align-items: center; font: 10px var(--app-font-mono); }
 .app-footer button:hover { color: hsl(var(--primary)); }
+.app-footer button:disabled { opacity: .45; cursor: not-allowed; }
 
 .overview-layout { display: grid; grid-template-columns: minmax(0, 1fr) 265px; gap: 19px; }
 .overview-main,.overview-rail { min-width: 0; display: flex; flex-direction: column; gap: 17px; }
@@ -319,6 +325,40 @@
 .last-result p { font-size: 10px; color: hsl(var(--muted-foreground)); line-height: 1.5; margin: 6px 0 12px; }.result-meta-line { display: flex; justify-content: space-between; border-top: 1px solid hsl(var(--border)); padding-top: 9px; font: 8px var(--app-font-mono); color: hsl(var(--muted-foreground)); }.result-meta-line strong { color: hsl(var(--foreground)); font-size: 10px; }.no-result { padding-top: 13px; color: hsl(var(--muted-foreground)); font-size: 10px; line-height: 1.5; }
 
 .page-stack { display: flex; flex-direction: column; gap: 18px; }
+.team-select-layout { display: flex; flex-direction: column; gap: 17px; }
+.team-select-hero { min-height: 196px; padding: 24px 29px; display: flex; justify-content: space-between; align-items: center; gap: 22px; position: relative; overflow: hidden; background: hsl(218 29% 17%); color: #f4ede2; border: 0; }
+.team-select-hero::after { content: "GRID"; position: absolute; right: 100px; bottom: -29px; color: hsl(40 20% 90% / .045); font: 900 145px/.8 var(--app-font-display); letter-spacing: -.04em; pointer-events: none; }
+.team-select-copy { position: relative; z-index: 1; max-width: 610px; }
+.team-select-copy .eyebrow { color: hsl(38 15% 68%); }
+.team-select-copy h2 { margin: 10px 0 9px; color: #fff6e9; font: 700 41px/.9 var(--app-font-display); text-transform: uppercase; }
+.team-select-copy h2 em { color: #ea775f; font-style: normal; }
+.team-select-copy p { max-width: 510px; margin: 0; color: hsl(38 14% 76%); font-size: 11px; line-height: 1.6; }
+.team-grid-stamp { z-index: 1; flex: 0 0 128px; min-height: 102px; border-left: 1px solid hsl(38 20% 80% / .2); padding-left: 22px; display: flex; align-items: center; gap: 10px; color: #fff4e8; }
+.team-grid-stamp > span { font: 500 54px/.8 var(--app-font-mono); }
+.team-grid-stamp small { color: hsl(38 12% 65%); font: 8px/1.45 var(--app-font-mono); letter-spacing: .08em; }
+.team-select-heading { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.team-select-heading h3 { margin: 5px 0 0; font: 600 24px/1 var(--app-font-display); }
+.team-select-count { padding-bottom: 3px; color: hsl(var(--muted-foreground)); font: 8px var(--app-font-mono); letter-spacing: .08em; }
+.f1-team-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.f1-team-card { min-width: 0; min-height: 135px; padding: 13px; border-top: 3px solid var(--team-accent); display: flex; flex-direction: column; align-items: stretch; text-align: left; color: hsl(var(--foreground)); transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease; }
+.f1-team-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px hsl(218 25% 20% / .12); }
+.f1-team-card:focus-visible { outline: 3px solid var(--team-accent); outline-offset: 2px; }
+.f1-team-card.is-chosen { box-shadow: inset 0 0 0 1px var(--team-accent); }
+.f1-team-card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.f1-team-monogram { min-width: 38px; height: 27px; padding: 0 5px; display: grid; place-items: center; background: var(--team-accent); color: var(--team-secondary); font: 700 9px var(--app-font-mono); }
+.f1-team-index { color: hsl(var(--muted-foreground)); font: 9px var(--app-font-mono); }
+.f1-team-card > strong { overflow: hidden; color: hsl(var(--foreground)); font: 600 19px/1.05 var(--app-font-display); text-overflow: ellipsis; white-space: nowrap; }
+.f1-team-base { display: flex; align-items: center; gap: 4px; min-width: 0; margin-top: 5px; color: hsl(var(--muted-foreground)); font-size: 8px; }
+.f1-team-base svg { flex: 0 0 auto; color: var(--team-accent); }
+.f1-team-card-action { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 11px; color: var(--team-accent); font: 8px var(--app-font-mono); letter-spacing: .08em; }
+.current-f1-team { display: flex; align-items: center; gap: 8px; margin: -5px 0 13px; }
+.current-f1-mark { display: grid; place-items: center; min-width: 38px; height: 27px; padding: 0 5px; color: #fff; background: var(--team-accent); font: 700 9px var(--app-font-mono); }
+.current-f1-team > span:last-child { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.current-f1-team b { overflow: hidden; font: 600 13px var(--app-font-display); text-overflow: ellipsis; white-space: nowrap; }
+.current-f1-team small { color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .06em; }
+.change-team-button { width: 100%; min-height: 31px; margin-top: 12px; padding: 0 8px; display: flex; justify-content: space-between; align-items: center; gap: 6px; border: 1px solid hsl(var(--border)); border-radius: 5px; background: transparent; color: hsl(var(--foreground)); font-size: 9px; text-align: left; }
+.change-team-button:hover:not(:disabled) { border-color: var(--team-accent); color: var(--team-accent); }
+.change-team-button:disabled { opacity: .52; cursor: not-allowed; }
 .market-intro { padding: 24px 28px; display: flex; justify-content: space-between; align-items: center; gap: 20px; position: relative; overflow: hidden; background: hsl(218 29% 17%); color: #f4ede2; border: 0; }
 .market-intro::after { content: "DRIVERS"; position: absolute; right: 102px; bottom: -23px; color: hsl(40 20% 90% / .04); font: 900 112px/.8 var(--app-font-display); letter-spacing: -.03em; pointer-events: none; }
 .market-intro .eyebrow { color: hsl(38 15% 68%); }.market-intro h2 { font: 700 37px/.92 var(--app-font-display); margin: 10px 0 9px; text-transform: uppercase; position: relative; z-index: 1; }.market-intro p { margin: 0; font-size: 11px; line-height: 1.55; max-width: 430px; color: hsl(38 14% 76%); position: relative; z-index: 1; }
@@ -356,10 +396,10 @@
 .garage-car-art { height: 192px; position: relative; overflow: hidden; background: repeating-linear-gradient(135deg, transparent 0 18px, hsl(40 20% 88% / .035) 18px 19px, transparent 19px 38px); margin: 14px -20px 12px; }
 .garage-car-art::before { content: ""; position: absolute; left: 13%; right: 11%; top: 22px; bottom: 20px; border: 1px solid hsl(39 33% 81% / .16); border-radius: 50%; transform: rotate(-11deg); }
 .car-shadow { position: absolute; height: 20px; left: 17%; right: 12%; bottom: 28px; background: hsl(0 0% 0% / .24); filter: blur(7px); border-radius: 50%; }
-.garage-body { position: absolute; height: 37px; width: 45%; left: 28%; top: 75px; background: linear-gradient(95deg, #ad352c 0%, #e85e47 50%, #d34b38 100%); clip-path: polygon(0 65%, 11% 37%, 35% 15%, 62% 20%, 78% 45%, 100% 59%, 93% 82%, 7% 100%); }
+.garage-body { position: absolute; height: 37px; width: 45%; left: 28%; top: 75px; background: linear-gradient(95deg, color-mix(in srgb, var(--team-accent, #ad352c) 72%, #111820) 0%, var(--team-accent, #e85e47) 50%, color-mix(in srgb, var(--team-accent, #d34b38) 78%, #fff) 100%); clip-path: polygon(0 65%, 11% 37%, 35% 15%, 62% 20%, 78% 45%, 100% 59%, 93% 82%, 7% 100%); }
 .garage-body::before { content: ""; position: absolute; left: 42%; top: 2px; width: 17%; height: 14px; background: #283544; clip-path: polygon(14% 0, 86% 0, 100% 100%, 0 100%); }
 .garage-body span { position: absolute; left: 52%; top: 21px; color: hsl(38 27% 84% / .85); font: 700 10px var(--app-font-display); letter-spacing: .06em; }
-.garage-wing { position: absolute; z-index: 2; width: 17%; left: 17%; top: 77px; height: 39px; border-top: 6px solid #dcb563; border-bottom: 4px solid #dcb563; transform: skew(-29deg); }
+.garage-wing { position: absolute; z-index: 2; width: 17%; left: 17%; top: 77px; height: 39px; border-top: 6px solid var(--team-secondary, #dcb563); border-bottom: 4px solid var(--team-secondary, #dcb563); transform: skew(-29deg); }
 .garage-nose { position: absolute; width: 25%; height: 13px; right: 13%; top: 88px; background: #e4b85f; clip-path: polygon(0 0, 100% 34%, 100% 67%, 0 100%); }
 .garage-wheel { position: absolute; width: 25px; height: 47px; top: 100px; z-index: 3; background: #111720; border-radius: 5px; border: 2px solid hsl(215 11% 44%); }.gw1 { left: 31%; }.gw2 { right: 26%; }
 .car-telemetry { position: absolute; top: 37px; left: 9%; color: hsl(38 12% 68%); font: 8px var(--app-font-mono); letter-spacing: .08em; }.car-telemetry b { color: #eabf69; margin-left: 5px; font-weight: 500; }.car-telemetry.second { left: auto; right: 8%; top: 145px; }
@@ -379,6 +419,62 @@
 .new-season-button { border: 1px solid hsl(var(--border)); background: transparent; border-radius: 6px; height: 34px; color: hsl(var(--muted-foreground)); display: flex; justify-content: center; align-items: center; gap: 7px; font-size: 9px; }.new-season-button:hover { color: hsl(var(--primary)); border-color: hsl(var(--primary) / .55); }
 
 .race-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; align-items: start; gap: 17px; }.race-main,.race-rail { display: flex; flex-direction: column; gap: 15px; min-width: 0; }.race-rail { gap: 13px; }
+.live-race-layout { display: flex; flex-direction: column; gap: 15px; scroll-margin-top: 16px; }
+.live-race-hero { min-height: 190px; padding: 23px 25px; display: flex; justify-content: space-between; align-items: center; gap: 20px; position: relative; overflow: hidden; border: 0; background: hsl(218 29% 17%); color: #f5eee3; }
+.live-race-hero::after { content: "RACE"; position: absolute; right: 175px; bottom: -33px; color: hsl(40 20% 90% / .04); font: 900 130px/.8 var(--app-font-display); letter-spacing: -.05em; pointer-events: none; }
+.live-race-hero-copy { position: relative; z-index: 1; min-width: 0; }
+.live-race-overline { display: flex; align-items: center; gap: 7px; color: hsl(38 15% 69%); font: 8px var(--app-font-mono); letter-spacing: .1em; }
+.live-race-overline i,.live-race-location i { color: hsl(38 15% 55%); font-style: normal; }
+.live-race-pulse { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: #e65d4c; box-shadow: 0 0 0 4px hsl(8 75% 58% / .14); animation: race-pulse 1.3s ease-in-out infinite; }
+@keyframes race-pulse { 50% { box-shadow: 0 0 0 7px hsl(8 75% 58% / .04); opacity: .65; } }
+.live-race-hero h2 { margin: 11px 0 5px; color: #fff6e9; font: 700 38px/.95 var(--app-font-display); text-transform: uppercase; }
+.live-race-location { display: flex; align-items: center; gap: 6px; color: hsl(38 13% 68%); font-size: 9px; }
+.live-race-location svg { color: #e8b960; }
+.live-race-hero-copy p { max-width: 520px; margin: 13px 0 0; color: hsl(38 14% 76%); font-size: 10px; line-height: 1.55; }
+.live-race-clock { position: relative; z-index: 1; flex: 0 0 185px; min-height: 112px; padding: 14px 0 14px 20px; border-left: 1px solid hsl(38 20% 80% / .2); display: flex; flex-direction: column; justify-content: center; gap: 7px; }
+.live-race-clock > span,.live-race-clock small { color: hsl(38 12% 66%); font: 7px var(--app-font-mono); letter-spacing: .09em; }
+.live-race-clock strong { color: #fff5e8; font-size: 43px; line-height: 1; }
+.live-race-clock small { color: #e7bd6a; }
+.live-race-progress { padding: 13px 16px; }
+.live-progress-heading { display: flex; justify-content: space-between; gap: 12px; color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .08em; }
+.live-progress-heading > span:first-child { display: flex; align-items: center; gap: 6px; color: hsl(var(--foreground)); }
+.live-progress-heading svg { color: hsl(var(--primary)); }
+.live-progress-track { height: 5px; margin-top: 11px; overflow: hidden; background: hsl(var(--muted)); border-radius: 6px; }
+.live-progress-track > span { display: block; height: 100%; background: linear-gradient(90deg, hsl(var(--primary)), #eabf69); transition: width .25s linear; }
+.live-progress-meta { display: grid; grid-template-columns: 1fr 1fr 1.5fr; gap: 10px; margin-top: 9px; color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .06em; }
+.live-progress-meta b { color: hsl(var(--foreground)); font-weight: 600; }
+.live-driver-section { display: flex; flex-direction: column; gap: 9px; }
+.live-section-heading,.live-timing-heading { display: flex; justify-content: space-between; align-items: end; gap: 10px; }
+.live-section-heading h3,.live-timing-heading h3 { margin: 5px 0 0; font: 600 23px/1 var(--app-font-display); }
+.live-field-count,.live-timing-round { color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .08em; }
+.live-driver-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.live-driver-card { min-width: 0; padding: 12px; display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: center; gap: 10px; border-left: 3px solid var(--driver-accent); }
+.live-driver-name { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.live-driver-name > span,.live-driver-position > span { color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .07em; }
+.live-driver-name strong { overflow: hidden; font: 600 14px var(--app-font-display); text-overflow: ellipsis; white-space: nowrap; }
+.live-driver-name small { overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.live-driver-position { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.live-driver-position strong { color: var(--driver-accent); font-size: 22px; }
+.live-timing-panel { overflow: hidden; }
+.live-timing-heading { padding: 14px 16px 11px; border-bottom: 1px solid hsl(var(--border)); }
+.live-timing-round i { color: hsl(var(--primary)); font-style: normal; }
+.live-timing-labels,.live-timing-row { display: grid; grid-template-columns: 47px minmax(120px, 1.15fr) minmax(120px, 1fr) 76px; align-items: center; gap: 10px; }
+.live-timing-labels { padding: 8px 14px; color: hsl(var(--muted-foreground)); background: hsl(var(--muted) / .45); font: 7px var(--app-font-mono); letter-spacing: .08em; }
+.live-timing-row { min-height: 43px; padding: 5px 14px; border-top: 1px solid hsl(var(--border) / .65); }
+.live-timing-row.is-player { background: hsl(8 74% 49% / .055); box-shadow: inset 2px 0 var(--team-accent, hsl(var(--primary))); }
+.live-timing-position { color: hsl(var(--muted-foreground)); font-size: 10px; }
+.live-timing-row.is-player .live-timing-position { color: hsl(var(--primary)); font-weight: 700; }
+.live-timing-driver { min-width: 0; display: flex; align-items: center; gap: 7px; }
+.live-timing-driver strong { overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.live-timing-driver small { display: none; color: hsl(var(--primary)); font: 6px var(--app-font-mono); letter-spacing: .06em; }
+.live-timing-team { overflow: hidden; color: hsl(var(--muted-foreground)); font-size: 8px; text-overflow: ellipsis; white-space: nowrap; }
+.live-timing-movement { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); }
+.live-timing-movement b { font-size: 9px; }
+.live-timing-movement small { font-size: 6px; }
+.live-timing-movement.moved-up { color: hsl(145 35% 38%); }
+.live-timing-movement.moved-down { color: hsl(var(--primary)); }
+.live-timing-foot { display: flex; align-items: center; gap: 8px; padding: 9px 14px; border-top: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); font: 7px var(--app-font-mono); letter-spacing: .06em; }
+.live-timing-foot .live-race-pulse { width: 5px; height: 5px; }
 .race-circuit { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 15px; align-items: center; overflow: hidden; padding: 19px; }.circuit-copy h2 { margin: 8px 0 5px; font: 700 32px/1 var(--app-font-display); }.circuit-copy p { font-size: 10px; color: hsl(var(--muted-foreground)); line-height: 1.6; max-width: 340px; margin: 13px 0; }.circuit-copy p b { color: hsl(var(--foreground)); font-weight: 600; }
 .brief-chips { display: flex; gap: 5px; flex-wrap: wrap; }.brief-chips span { padding: 5px 7px; border: 1px solid hsl(var(--border)); color: hsl(var(--muted-foreground)); border-radius: 3px; font: 7px var(--app-font-mono); letter-spacing: .05em; }
 .circuit-art { min-height: 145px; position: relative; background: hsl(218 27% 18%); overflow: hidden; border-radius: 9px; }.circuit-art-grid { position: absolute; inset: 0; background-image: linear-gradient(hsl(38 15% 80% / .07) 1px, transparent 1px), linear-gradient(90deg, hsl(38 15% 80% / .07) 1px, transparent 1px); background-size: 18px 18px; }.circuit-art svg { position: absolute; width: 90%; height: 83%; top: 5%; left: 5%; overflow: visible; }.circuit-underlay { fill: none; stroke: hsl(8 74% 55% / .2); stroke-width: 12; stroke-linecap: round; stroke-linejoin: round; }.circuit-path { fill: none; stroke: #ef795e; stroke-width: 2.5; stroke-dasharray: 5 3; stroke-linecap: round; stroke-linejoin: round; }.circuit-start { fill: #e9ba6b; stroke: #283241; stroke-width: 2; }.circuit-art-caption { position: absolute; left: 10px; bottom: 8px; color: hsl(38 14% 67%); font: 7px var(--app-font-mono); letter-spacing: .08em; }.circuit-art-caption i { color: hsl(var(--primary)); font-style: normal; }
@@ -409,6 +505,8 @@
   .app-frame { grid-template-columns: 215px minmax(0, 1fr); }
   .overview-layout { grid-template-columns: minmax(0, 1fr) 235px; }
   .driver-market-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .f1-team-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .live-race-clock { flex-basis: 165px; }
   .garage-layout,.race-layout { grid-template-columns: minmax(0, 1fr) 235px; }
   .upgrade-row { grid-template-columns: 36px minmax(110px,1fr) 60px 100px 76px; gap: 8px; }
   .race-circuit { grid-template-columns: minmax(0, 1fr) 190px; }
@@ -448,12 +546,14 @@
   .overview-lower { grid-template-columns: 1fr; }.overview-rail { grid-template-columns: 1fr 1fr; }.budget-card { grid-column: 1 / -1; }.budget-number { font-size: 23px; }.last-result { grid-column: 1 / -1; }
   .progress-panel,.roster-panel { padding: 14px; }.section-heading h3 { font-size: 19px; }.stop-name { font-size: 6px; max-width: 42px; }.season-track { gap: 2px; }.stop-dot { width: 18px; height: 18px; font-size: 7px; }.season-progress-line { top: 29px; }
   .market-intro { padding: 18px; align-items: flex-start; }.market-intro h2 { font-size: 32px; }.market-intro p { max-width: 260px; font-size: 10px; }.seats-block { min-width: auto; padding-left: 13px; }.seats-block .eyebrow { font-size: 7px; white-space: normal; }.seat-count strong { font-size: 31px; }.market-intro::after { right: 12px; font-size: 80px; }
+  .team-select-hero { min-height: 180px; padding: 18px; }.team-select-copy h2 { font-size: 34px; }.team-select-copy p { max-width: 350px; font-size: 9px; }.team-grid-stamp { flex-basis: 87px; min-height: 78px; padding-left: 11px; gap: 5px; }.team-grid-stamp > span { font-size: 36px; }.team-grid-stamp small { font-size: 6px; }.team-select-heading h3 { font-size: 21px; }.team-select-count { font-size: 6px; }.f1-team-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }.f1-team-card { min-height: 127px; padding: 11px; }.f1-team-card > strong { font-size: 17px; }.f1-team-base { font-size: 7px; }
   .driver-market-grid { grid-template-columns: 1fr; gap: 10px; }.driver-card { padding: 14px; }.market-section-head h3 { font-size: 21px; }.market-sort { display: none; }.signed-banner { flex-wrap: wrap; gap: 7px 12px; }.signed-names { border-left: 0; padding-left: 23px; width: 100%; flex: auto; }.signed-banner .text-link { margin-left: 22px; }.market-bottom-note { align-items: flex-start; font-size: 9px; }
   .garage-layout,.race-layout { grid-template-columns: 1fr; gap: 14px; }.garage-rail,.race-rail { display: grid; grid-template-columns: 1fr 1fr; align-items: start; }.team-settings,.garage-budget-note,.new-season-button { grid-column: 1 / -1; }.garage-hero { padding: 15px; }.garage-car-art { margin-left: -15px; margin-right: -15px; height: 170px; }.garage-stats { gap: 9px; }.car-bar > div:first-child span { font-size: 7px; }.car-bar > div:first-child strong { font-size: 10px; }.upgrade-title { align-items: flex-end; }.budget-pill { font-size: 7px; padding: 6px; }.upgrade-row { grid-template-columns: 34px minmax(0,1fr) 52px; gap: 8px; }.upgrade-info { grid-column: 2; }.upgrade-level { grid-column: 3; grid-row: 1; }.upgrade-cost { grid-column: 2; grid-row: 2; }.upgrade-button { grid-column: 3; grid-row: 2; }.upgrade-icon { grid-row: span 2; align-self: start; }.upgrade-info p { max-width: 210px; }
   .race-circuit { grid-template-columns: 1fr; }.circuit-art { min-height: 160px; }.race-blocked { align-items: flex-start; flex-wrap: wrap; }.race-blocked > div:nth-child(2) { flex-basis: calc(100% - 50px); }.race-blocked .text-link { margin-left: 42px; }.strategy-panel { padding: 14px; }.strategy-options,.tire-options { gap: 5px; }.strategy-option { padding: 7px 5px; grid-template-columns: 19px 1fr; column-gap: 5px; }.option-symbol { height: 23px; }.strategy-option strong { font-size: 9px; }.strategy-option small { font-size: 7px; }.tire-option { padding: 7px 5px; gap: 5px; }.tire-mark { width: 22px; height: 22px; }.tire-option small { font-size: 6px; }.strategy-group-heading > span { font-size: 6px; }.race-submit-row > div strong { font-size: 11px; }.race-start-button { padding: 0 8px; font-size: 9px; }
+  .live-race-hero { min-height: 170px; padding: 17px; gap: 10px; }.live-race-hero h2 { font-size: 29px; }.live-race-hero-copy p { font-size: 8px; line-height: 1.45; }.live-race-clock { flex-basis: 115px; min-height: 90px; padding: 10px 0 10px 11px; }.live-race-clock > span,.live-race-clock small { font-size: 6px; }.live-race-clock strong { font-size: 32px; }.live-race-overline { font-size: 7px; gap: 5px; }.live-race-location { font-size: 8px; }.live-race-progress { padding: 11px; }.live-progress-heading { font-size: 6px; }.live-progress-meta { grid-template-columns: 1fr 1fr; gap: 8px; font-size: 6px; }.live-progress-meta > span:last-child { grid-column: 1 / -1; }.live-section-heading h3,.live-timing-heading h3 { font-size: 20px; }.live-field-count,.live-timing-round { font-size: 6px; }.live-driver-cards { grid-template-columns: 1fr; }.live-driver-card { grid-template-columns: 38px minmax(0, 1fr) auto; }.live-timing-labels,.live-timing-row { grid-template-columns: 34px minmax(0, 1fr) 58px; gap: 6px; padding-left: 10px; padding-right: 10px; }.live-timing-labels span:nth-child(3),.live-timing-team { display: none; }.live-timing-driver { align-items: flex-start; flex-direction: column; gap: 2px; }.live-timing-driver small { display: block; }.live-timing-driver strong { font-size: 8px; }.live-timing-movement b { font-size: 8px; }.live-timing-foot { padding: 8px 10px; font-size: 6px; }
   .standings-grid { grid-template-columns: 1fr; }.championship-banner { min-height: 228px; padding: 19px; }.championship-banner h2 { font-size: 34px; }.championship-stamp { top: 27px; right: 22px; width: 54px; height: 54px; }.championship-stamp svg { width: 22px; }.championship-banner-stats > div { min-width: 0; flex: 1; padding: 9px 8px; }.championship-banner-stats > div span { font-size: 6px; }.championship-banner-stats strong { font-size: 15px; }.history-row { grid-template-columns: 30px minmax(85px,1fr) minmax(90px,1fr); padding: 9px 10px; gap: 6px; }.history-money { grid-column: 3; font-size: 8px; }.history-result { font-size: 8px; }.history-track b { font-size: 9px; }.history-track small { font-size: 7px; }.season-complete-wrap { grid-template-columns: 1fr; }.season-complete { padding: 20px; }.season-complete h2 { font-size: 40px; }
   .app-footer { font-size: 7px; }.app-footer button { font-size: 8px; }
 }
 @media (max-width: 390px) {
-  .main-column { padding: 0 11px; }.hero-content { max-width: 74%; padding-left: 15px; }.hero-content h2 { font-size: 37px; }.hero-content p { max-width: 208px; font-size: 9px; }.hero-car { right: -58px; }.hero-footer { left: 14px; right: 12px; }.hero-footer > span:last-child { font-size: 6px; }.overview-rail { grid-template-columns: 1fr; }.budget-card,.last-result { grid-column: auto; }.market-intro { padding: 15px; }.market-intro h2 { font-size: 28px; }.seats-block { padding-left: 9px; }.seats-block .eyebrow { font-size: 6px; }.strategy-status { font-size: 6px; }.pit-options { gap: 5px; }.history-row { grid-template-columns: 27px 1fr 1fr; }.brief-chips span { font-size: 6px; }
+  .main-column { padding: 0 11px; }.hero-content { max-width: 74%; padding-left: 15px; }.hero-content h2 { font-size: 37px; }.hero-content p { max-width: 208px; font-size: 9px; }.hero-car { right: -58px; }.hero-footer { left: 14px; right: 12px; }.hero-footer > span:last-child { font-size: 6px; }.overview-rail { grid-template-columns: 1fr; }.budget-card,.last-result { grid-column: auto; }.market-intro { padding: 15px; }.market-intro h2 { font-size: 28px; }.seats-block { padding-left: 9px; }.seats-block .eyebrow { font-size: 6px; }.team-select-hero { align-items: flex-start; }.team-select-copy h2 { font-size: 29px; }.team-grid-stamp { flex-basis: 68px; padding-left: 8px; }.team-grid-stamp > span { font-size: 29px; }.team-select-count { display: none; }.f1-team-grid { grid-template-columns: 1fr; }.f1-team-card { min-height: 116px; }.live-race-hero { padding: 14px; }.live-race-hero h2 { font-size: 26px; }.live-race-clock { flex-basis: 103px; padding-left: 8px; }.live-race-clock strong { font-size: 28px; }.live-race-overline { font-size: 6px; }.live-race-hero-copy p { font-size: 7px; }.live-timing-round { font-size: 5px; }.strategy-status { font-size: 6px; }.pit-options { gap: 5px; }.history-row { grid-template-columns: 27px 1fr 1fr; }.brief-chips span { font-size: 6px; }
 }

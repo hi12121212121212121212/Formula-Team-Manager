@@ -1,15 +1,16 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useEffect, useState, type CSSProperties, type ReactNode } from 'react';
 import {
   Activity, Award, Banknote, Check, ChevronRight, CircleAlert, Flag, MapPin,
   Medal, RotateCcw, Save, ShieldCheck, Sparkles, Trophy, Users, Wrench, Zap,
 } from 'lucide-react';
 import {
-  buyUpgrade, createNewGame, currentTrack, DRIVERS, estimatedWinChance,
-  getDriver, hireDriver, loadGame, runRace, saveGame, TRACKS, UPGRADES,
-  type CarStats, type Driver, type GameState, type RaceResult, type RaceStrategy, type Track,
+  buyUpgrade, createNewGame, CURRENT_F1_TEAMS, currentTrack, DRIVERS, estimatedWinChance,
+  finishRace, getDriver, getF1Team, getRaceProgress, hireDriver, loadGame, saveGame, selectF1Team,
+  startRace, TRACKS, UPGRADES,
+  type CarStats, type Driver, type F1Team, type GameState, type PendingRace, type RaceResult, type RaceStrategy, type Track,
 } from './game';
 
-type View = 'overview' | 'market' | 'garage' | 'race' | 'standings';
+type View = 'team-select' | 'overview' | 'market' | 'garage' | 'race' | 'standings';
 const NAV: { id: View; label: string; icon: typeof Activity }[] = [
   { id: 'overview', label: 'Pit wall', icon: Activity },
   { id: 'market', label: 'Driver market', icon: Users },
@@ -20,16 +21,32 @@ const NAV: { id: View; label: string; icon: typeof Activity }[] = [
 const currency = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
 const money = (amount: number) => currency.format(amount);
 const titleCase = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+const formatRaceClock = (milliseconds: number) => {
+  const seconds = Math.ceil(Math.max(0, milliseconds) / 1000);
+  return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
+};
+
+function entryView(game: GameState): View {
+  if (game.pendingRace) return 'race';
+  if (game.round === 0 && !game.selectedTeamId) return 'team-select';
+  return game.drivers.length < 2 ? 'market' : 'overview';
+}
 
 function App() {
   const [game, setGame] = useState<GameState>(() => loadGame());
-  const [view, setView] = useState<View>(() => game.drivers.length < 2 ? 'market' : 'overview');
+  const [view, setView] = useState<View>(() => entryView(game));
   const [strategy, setStrategy] = useState<RaceStrategy>({ pace: 'balanced', tire: 'medium', pitStops: 1 });
+  const [clockNow, setClockNow] = useState(() => Date.now());
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const track = currentTrack(game);
   const signedDrivers = game.drivers.map(getDriver).filter((driver): driver is Driver => Boolean(driver));
   const latest = game.history[game.history.length - 1];
+  const selectedTeam = getF1Team(game.selectedTeamId);
+  const shellStyle = {
+    '--team-accent': selectedTeam?.accent ?? '#d84934',
+    '--team-secondary': selectedTeam?.secondary ?? '#e9ba6b',
+  } as CSSProperties;
 
   function commit(next: GameState) {
     setGame(next);
@@ -43,6 +60,13 @@ function App() {
     commit(action.state);
     setNotice(`${getDriver(id)?.name ?? 'Driver'} is on the roster.`);
   }
+  function chooseTeam(id: string) {
+    const action = selectF1Team(game, id);
+    if (action.error) { setError(action.error); setNotice(''); return; }
+    commit(action.state);
+    setView(action.state.drivers.length < 2 ? 'market' : 'overview');
+    setNotice(`${getF1Team(id)?.name ?? 'F1 team'} selected for your season.`);
+  }
   function upgrade(id: keyof CarStats) {
     const action = buyUpgrade(game, id);
     if (action.error) { setError(action.error); setNotice(''); return; }
@@ -50,10 +74,11 @@ function App() {
     setNotice(`${UPGRADES.find((item) => item.id === id)?.name ?? 'Upgrade'} installed.`);
   }
   function race() {
-    const action = runRace(game, strategy);
+    const action = startRace(game, strategy);
     if (action.error) { setError(action.error); setNotice(''); return; }
     commit(action.state);
-    setNotice('Race classified. Prize money and championship points added.');
+    setView('race');
+    setNotice('The race is live. Follow the changing positions while the 60-second clock runs.');
   }
   function rename(name: string) { commit({ ...game, teamName: name.slice(0, 24) }); }
   function save() {
@@ -61,22 +86,43 @@ function App() {
     catch { setError('Could not save to this browser. Check local storage permissions and try again.'); setNotice(''); }
   }
   function load() {
+    if (game.pendingRace) return;
     try {
       const saved = loadGame();
       setGame(saved);
-      setView(saved.drivers.length < 2 ? 'market' : 'overview');
+      setView(entryView(saved));
       setError('');
       setNotice('Local season loaded.');
     } catch { setError('Could not load the local season.'); setNotice(''); }
   }
   function newSeason() {
+    if (game.pendingRace) { setError('Finish the live race before starting a new season.'); setNotice(''); return; }
     if (!window.confirm('Start a new season? This replaces the saved season on this device.')) return;
-    commit(createNewGame(game.teamName));
+    commit(createNewGame());
     setStrategy({ pace: 'balanced', tire: 'medium', pitStops: 1 });
-    setView('market');
-    setNotice('New season opened. Recruit two drivers to get started.');
+    setView('team-select');
+    setNotice('New season opened. Choose an F1 team to get started.');
   }
+  useEffect(() => {
+    if (!game.pendingRace) return;
+    const interval = window.setInterval(() => setClockNow(Date.now()), 250);
+    const focusTimer = window.setTimeout(() => {
+      document.getElementById('live-race-view')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 80);
+    return () => {
+      window.clearInterval(interval);
+      window.clearTimeout(focusTimer);
+    };
+  }, [game.pendingRace?.startedAt]);
+  useEffect(() => {
+    if (!game.pendingRace || clockNow - game.pendingRace.startedAt < game.pendingRace.durationMs) return;
+    const action = finishRace(game, clockNow);
+    if (action.error || !action.result) return;
+    commit(action.state);
+    setNotice('Race classified. Prize money and championship points added.');
+  }, [clockNow, game.pendingRace]);
   const headings: Record<View, string> = {
+    'team-select': 'Choose your F1 team.',
     overview: game.drivers.length < 2 ? 'A team starts here.' : 'The work before Sunday.',
     market: game.drivers.length === 2 ? 'Your seats are filled.' : 'Find your two drivers.',
     garage: 'Build a faster answer.',
@@ -84,11 +130,12 @@ function App() {
     standings: 'Every point has a price.',
   };
   const labels: Record<View, string> = {
+    'team-select': 'THE 2026 GRID',
     overview: 'THE PIT WALL', market: 'BUILD THE LINEUP', garage: 'DEVELOPMENT BAY',
     race: 'RACE CONTROL', standings: 'SEASON SCOREBOARD',
   };
   return (
-    <div className="game-shell">
+    <div className="game-shell" style={shellStyle}>
       <div className="race-topline" />
       <div className="app-frame">
         <aside className="sidebar">
@@ -96,11 +143,11 @@ function App() {
             <div className="brand-mark"><span>FT</span><i /></div>
             <div><div className="brand-title">FORMULA / TEAM</div><div className="brand-subtitle">MANAGER · SEASON 01</div></div>
           </div>
-          <div className="sidebar-season"><div className="side-kicker">YOUR OUTFIT</div><div className="side-team">{game.teamName || 'Untitled team'}</div>
+          <div className="sidebar-season"><div className="side-kicker">YOUR F1 TEAM</div><div className="sidebar-team-line"><span className="sidebar-team-mark">{selectedTeam?.shortName ?? 'FT'}</span><div className="side-team">{selectedTeam ? game.teamName : 'Choose a team'}</div></div>
             <div className="season-progress"><div className="progress-track"><span style={{ width: `${game.round / 8 * 100}%` }} /></div><span>{String(game.round).padStart(2, '0')} <em>/ 08</em></span></div>
           </div>
           <nav className="main-nav" aria-label="Game sections"><div className="side-kicker nav-kicker">OPERATIONS</div>
-            {NAV.map(({ id, label, icon: Icon }) => <button type="button" key={id} onClick={() => { setView(id); setError(''); setNotice(''); }} className={`nav-item ${view === id ? 'is-active' : ''}`} data-testid={`nav-${id}`} aria-current={view === id ? 'page' : undefined}>
+            {NAV.map(({ id, label, icon: Icon }) => <button type="button" key={id} disabled={Boolean(game.pendingRace) && id !== 'race'} onClick={() => { setView(id); setError(''); setNotice(''); }} className={`nav-item ${view === id ? 'is-active' : ''}`} data-testid={`nav-${id}`} aria-current={view === id ? 'page' : undefined}>
               <Icon size={17} strokeWidth={1.8} /><span>{label}</span>{id === 'market' && game.drivers.length < 2 && <b className="nav-count">{2 - game.drivers.length}</b>}{id === 'race' && game.drivers.length === 2 && <span className="nav-dot" />}
             </button>)}
           </nav>
@@ -111,7 +158,7 @@ function App() {
             <div className="mobile-brand"><div className="brand-mark small"><span>FT</span><i /></div><span>FORMULA / TEAM</span></div>
             <div className="topbar-title"><span className="eyebrow">{labels[view]}</span><h1>{headings[view]}</h1></div>
             <div className="topbar-actions"><div className="round-indicator"><span className="round-label">ROUND</span><strong className="mono">{String(Math.min(game.round + (track ? 1 : 0), 8)).padStart(2, '0')}<small> / 08</small></strong></div>
-              <button className="icon-action button-motion" onClick={load} title="Load local season" aria-label="Load local season" data-testid="button-load"><RotateCcw size={16} /></button>
+              <button className="icon-action button-motion" onClick={load} disabled={Boolean(game.pendingRace)} title={game.pendingRace ? 'Loading is unavailable during a live race' : 'Load local season'} aria-label="Load local season" data-testid="button-load"><RotateCcw size={16} /></button>
               <button className="save-button button-motion" onClick={save} data-testid="button-save"><Save size={15} /><span>Save season</span></button>
             </div>
           </header>
@@ -127,18 +174,52 @@ function App() {
             {error ? <CircleAlert size={17} /> : <Check size={17} />}<span>{error || notice}</span><button aria-label="Dismiss message" onClick={() => { setError(''); setNotice(''); }}>×</button>
           </div>}
           <div className="workspace-content">
+            {view === 'team-select' && <TeamSelect selectedTeamId={game.selectedTeamId} onChoose={chooseTeam} />}
             {view === 'overview' && <Overview game={game} track={track} drivers={signedDrivers} latest={latest} navigate={setView} />}
             {view === 'market' && <Market game={game} drivers={signedDrivers} onHire={hire} navigate={setView} />}
-            {view === 'garage' && <Garage game={game} drivers={signedDrivers} onUpgrade={upgrade} onRename={rename} onNewSeason={newSeason} />}
-            {view === 'race' && <RaceDesk game={game} track={track} strategy={strategy} latest={latest} setStrategy={setStrategy} onRace={race} navigate={setView} />}
+            {view === 'garage' && <Garage game={game} drivers={signedDrivers} selectedTeam={selectedTeam} onUpgrade={upgrade} onRename={rename} onNewSeason={newSeason} onChooseTeam={() => setView('team-select')} />}
+            {view === 'race' && <RaceDesk game={game} track={track} strategy={strategy} latest={latest} now={clockNow} setStrategy={setStrategy} onRace={race} navigate={setView} />}
             {view === 'standings' && <Standings game={game} navigate={setView} />}
           </div>
-          <footer className="app-footer"><span>FORMULA TEAM MANAGER <i>·</i> SINGLE-SEAT OPERATIONS</span><button type="button" onClick={newSeason} data-testid="button-new-season">New season <ChevronRight size={14} /></button></footer>
+          <footer className="app-footer"><span>FORMULA TEAM MANAGER <i>·</i> SINGLE-SEAT OPERATIONS</span><button type="button" onClick={newSeason} disabled={Boolean(game.pendingRace)} data-testid="button-new-season">New season <ChevronRight size={14} /></button></footer>
         </main>
       </div>
       {!track && view === 'race' && <div className="season-finish-ribbon">THE SEASON IS CLASSIFIED</div>}
     </div>
   );
+}
+
+function TeamSelect({ selectedTeamId, onChoose }: { selectedTeamId: string | null; onChoose: (id: string) => void }) {
+  return <div className="team-select-layout">
+    <section className="team-select-hero panel rise-in">
+      <div className="team-select-copy">
+        <span className="eyebrow">FORMULA 1 / 2026 CONSTRUCTORS</span>
+        <h2>Pick your<br /><em>paddock.</em></h2>
+        <p>Take charge of one of the eleven teams on this season's grid. Your team choice sets your constructor identity; driver contracts, starting budget, and the race simulation stay the same.</p>
+      </div>
+      <div className="team-grid-stamp"><span>11</span><small>TEAMS<br />ON THE GRID</small></div>
+    </section>
+    <div className="team-select-heading"><div><span className="eyebrow">THE 2026 GRID</span><h3>Choose a constructor</h3></div><span className="team-select-count">11 TEAMS · ONE SEASON</span></div>
+    <div className="f1-team-grid">
+      {CURRENT_F1_TEAMS.map((team, index) => {
+        const chosen = selectedTeamId === team.id;
+        return <button
+          type="button"
+          className={`f1-team-card panel rise-in ${chosen ? 'is-chosen' : ''}`}
+          key={team.id}
+          style={{ '--team-accent': team.accent, '--team-secondary': team.secondary } as CSSProperties}
+          onClick={() => onChoose(team.id)}
+          aria-pressed={chosen}
+          data-testid={`button-choose-team-${team.id}`}
+        >
+          <span className="f1-team-card-top"><span className="f1-team-monogram">{team.shortName}</span><span className="f1-team-index">{String(index + 1).padStart(2, '0')}</span></span>
+          <strong>{team.name}</strong>
+          <span className="f1-team-base"><MapPin size={12} /> {team.base}</span>
+          <span className="f1-team-card-action">{chosen ? 'CURRENT TEAM' : 'TAKE THE SEAT'}<ChevronRight size={14} /></span>
+        </button>;
+      })}
+    </div>
+  </div>;
 }
 
 function LiveStat({ icon, label, value, testId }: { icon: ReactNode; label: string; value: ReactNode; testId: string }) {
@@ -197,7 +278,7 @@ function Market({ game, drivers, onHire, navigate }: { game: GameState; drivers:
   </div>;
 }
 
-function Garage({ game, drivers, onUpgrade, onRename, onNewSeason }: { game: GameState; drivers: Driver[]; onUpgrade: (id: keyof CarStats) => void; onRename: (name: string) => void; onNewSeason: () => void }) {
+function Garage({ game, drivers, selectedTeam, onUpgrade, onRename, onNewSeason, onChooseTeam }: { game: GameState; drivers: Driver[]; selectedTeam?: F1Team; onUpgrade: (id: keyof CarStats) => void; onRename: (name: string) => void; onNewSeason: () => void; onChooseTeam: () => void }) {
   return <div className="garage-layout">
     <div className="garage-main">
       <section className="garage-hero panel rise-in"><div className="garage-hero-top"><span className="eyebrow">CHASSIS DEVELOPMENT / CURRENT SPEC</span><span className="spec-stamp mono">FTM—01 <span>·</span> R{String(game.round).padStart(2, '0')}</span></div>
@@ -220,7 +301,7 @@ function Garage({ game, drivers, onUpgrade, onRename, onNewSeason }: { game: Gam
       </section>
     </div>
     <aside className="garage-rail">
-      <section className="panel team-settings rise-in"><span className="eyebrow">TEAM IDENTITY</span><h3>Put your name on it.</h3><label htmlFor="team-name">CONSTRUCTOR NAME</label><input id="team-name" value={game.teamName} maxLength={24} onChange={(event) => onRename(event.target.value)} placeholder="Your team name" data-testid="input-team-name" /><span className="input-hint">Up to 24 characters. Autosaved locally.</span></section>
+      <section className="panel team-settings rise-in"><span className="eyebrow">TEAM IDENTITY</span><h3>Put your name on it.</h3>{selectedTeam && <div className="current-f1-team"><span className="current-f1-mark">{selectedTeam.shortName}</span><span><b>{selectedTeam.name}</b><small>2026 F1 CONSTRUCTOR</small></span></div>}<label htmlFor="team-name">CONSTRUCTOR NAME</label><input id="team-name" value={game.teamName} maxLength={24} onChange={(event) => onRename(event.target.value)} placeholder="Your team name" data-testid="input-team-name" /><span className="input-hint">Up to 24 characters. Autosaved locally.</span><button type="button" className="change-team-button" onClick={onChooseTeam} disabled={game.round > 0} data-testid="button-change-f1-team">{game.round > 0 ? 'Team locked for this season' : 'Choose a different F1 team'}<ChevronRight size={13} /></button></section>
       <section className="panel drivers-garage-card rise-in"><div className="section-heading compact"><div><span className="eyebrow">DRIVER ROSTER</span><h3>Race seats</h3></div><Users size={16} /></div>
         {drivers.length ? drivers.map((driver, i) => <div className="garage-driver" key={driver.id}><DriverInitials driver={driver} /><div><strong>{driver.name}</strong><span>CAR {i + 1} · {driver.specialty}</span></div><span className="mono">{game.driverPoints[driver.id] ?? 0}<small> PTS</small></span></div>) : <div className="empty-roster garage-empty"><Users size={17} /><span>No drivers signed yet. Find them in Driver market.</span></div>}
         {drivers.length < 2 && <div className="missing-seat"><span>+</span><div><b>{2 - drivers.length} seat{drivers.length === 1 ? '' : 's'} unfilled</b><small>A full lineup is required to race.</small></div></div>}
@@ -231,7 +312,76 @@ function Garage({ game, drivers, onUpgrade, onRename, onNewSeason }: { game: Gam
   </div>;
 }
 
-function RaceDesk({ game, track, strategy, latest, setStrategy, onRace, navigate }: { game: GameState; track?: Track; strategy: RaceStrategy; latest?: RaceResult; setStrategy: (strategy: RaceStrategy) => void; onRace: () => void; navigate: (view: View) => void }) {
+function LiveRace({ pendingRace, now, teamName }: { pendingRace: PendingRace; now: number; teamName: string }) {
+  const progress = getRaceProgress(pendingRace, now);
+  const finishers = new Map(pendingRace.result.finishers.map((finisher) => [finisher.id, finisher]));
+  const liveEntries = progress.positions
+    .map((id) => finishers.get(id))
+    .filter((finisher): finisher is NonNullable<typeof finisher> => Boolean(finisher));
+  const playerEntries = liveEntries.filter((finisher) => finisher.isPlayer);
+  const track = pendingRace.result.track;
+
+  return <div className="live-race-layout" id="live-race-view" data-testid="live-race-view">
+    <section className="live-race-hero panel rise-in">
+      <div className="live-race-hero-copy">
+        <div className="live-race-overline"><span className="live-race-pulse" /> LIVE TIMING <i>·</i> ROUND {String(pendingRace.result.round).padStart(2, '0')}</div>
+        <h2>{track.name}</h2>
+        <div className="live-race-location"><MapPin size={13} /> {track.location} <i>·</i> {teamName}</div>
+        <p>Your drivers are on track. Positions update throughout the 60-second race; the result and prize money are added at the chequered flag.</p>
+      </div>
+      <div className="live-race-clock" aria-live="polite">
+        <span>TIME TO CLASSIFICATION</span>
+        <strong className="mono">{formatRaceClock(progress.remainingMs)}</strong>
+        <small>{progress.remainingMs > 0 ? 'RACE IN PROGRESS' : 'CLASSIFYING'}</small>
+      </div>
+    </section>
+
+    <section className="live-race-progress panel">
+      <div className="live-progress-heading"><span><Activity size={14} /> RACE CONTROL / LIVE FEED</span><span>UPDATES EVERY SECOND</span></div>
+      <div className="live-progress-track" role="progressbar" aria-label="Race progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.floor(progress.fraction * 100)}>
+        <span style={{ width: `${progress.fraction * 100}%` }} />
+      </div>
+      <div className="live-progress-meta"><span>LAP <b>{progress.lap}</b> / {track.laps}</span><span>ELAPSED <b>{formatRaceClock(progress.elapsedMs)}</b></span><span>STRATEGY <b>{titleCase(pendingRace.result.strategy.pace)} · {titleCase(pendingRace.result.strategy.tire)} · {pendingRace.result.strategy.pitStops} stop{pendingRace.result.strategy.pitStops === 1 ? '' : 's'}</b></span></div>
+    </section>
+
+    <section className="live-driver-section" aria-label="Your drivers' live positions">
+      <div className="live-section-heading"><div><span className="eyebrow">YOUR TEAM / ON TRACK</span><h3>Live driver positions</h3></div><span className="live-field-count">{liveEntries.length} CARS RUNNING</span></div>
+      <div className="live-driver-cards">
+        {playerEntries.map((entry) => {
+          const driver = getDriver(entry.id);
+          if (!driver) return null;
+          return <article className="live-driver-card panel" key={entry.id} style={{ '--driver-accent': driver.accent } as CSSProperties}>
+            <DriverInitials driver={driver} />
+            <div className="live-driver-name"><span>YOUR DRIVER</span><strong>{driver.name}</strong><small>{teamName}</small></div>
+            <div className="live-driver-position"><span>POSITION</span><strong className="mono">P{String(liveEntries.indexOf(entry) + 1).padStart(2, '0')}</strong></div>
+          </article>;
+        })}
+      </div>
+    </section>
+
+    <section className="live-timing-panel panel">
+      <div className="live-timing-heading"><div><span className="eyebrow">LIVE CLASSIFICATION</span><h3>Track positions</h3></div><span className="live-timing-round">R{String(pendingRace.result.round).padStart(2, '0')} <i>·</i> {track.laps} LAPS</span></div>
+      <div className="live-timing-labels"><span>POS</span><span>DRIVER</span><span>TEAM</span><span>LAST CHANGE</span></div>
+      <div className="live-timing-list" aria-label="Live race positions">
+        {liveEntries.map((entry, index) => {
+          const previousIndex = progress.previousPositions.indexOf(entry.id);
+          const change = previousIndex < 0 ? 0 : previousIndex - index;
+          const movement = progress.snapshotIndex === 0 ? 'GRID' : change > 0 ? `+${change}` : change < 0 ? String(change) : '—';
+          return <div className={`live-timing-row ${entry.isPlayer ? 'is-player' : ''}`} key={entry.id} data-testid={`live-position-${entry.id}`} aria-label={`Position ${index + 1}: ${entry.name}, ${entry.team}${entry.isPlayer ? ', your driver' : ''}`}>
+            <span className="live-timing-position mono">{String(index + 1).padStart(2, '0')}</span>
+            <span className="live-timing-driver"><strong>{entry.name}</strong><small>{entry.isPlayer ? 'YOUR DRIVER' : entry.team}</small></span>
+            <span className="live-timing-team">{entry.team}</span>
+            <span className={`live-timing-movement ${change > 0 ? 'moved-up' : change < 0 ? 'moved-down' : ''}`}>{progress.snapshotIndex === 0 ? <span>GRID</span> : <><b>{movement}</b><small>{change > 0 ? 'UP' : change < 0 ? 'DOWN' : 'HOLD'}</small></>}</span>
+          </div>;
+        })}
+      </div>
+      <div className="live-timing-foot"><span className="live-race-pulse" /> CLASSIFICATION IS FINAL WHEN THE CLOCK REACHES 00:00</div>
+    </section>
+  </div>;
+}
+
+function RaceDesk({ game, track, strategy, latest, now, setStrategy, onRace, navigate }: { game: GameState; track?: Track; strategy: RaceStrategy; latest?: RaceResult; now: number; setStrategy: (strategy: RaceStrategy) => void; onRace: () => void; navigate: (view: View) => void }) {
+  if (game.pendingRace) return <LiveRace pendingRace={game.pendingRace} now={now} teamName={game.teamName} />;
   if (!track) return <SeasonComplete game={game} latest={latest} navigate={navigate} />;
   const ready = game.drivers.length === 2;
   const paceOptions = [{ value: 'conservative', label: 'Conserve', detail: 'Protect the car', symbol: '—' }, { value: 'balanced', label: 'Balanced', detail: 'Measured pace', symbol: '≈' }, { value: 'attack', label: 'Attack', detail: 'Push for position', symbol: '↗' }] as const;
