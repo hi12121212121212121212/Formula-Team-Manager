@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Formula Team Manager"
+description = "A single-player motorsport management game where you build a racing team, pay for drivers with distinct abilities, upgrade your car, and make race strategy calls across a championship season."
+version = "1.0.0"
+id = "artifacts/formula-team-manager"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 20542
+
+[services.development]
+run = "pnpm --filter @workspace/formula-team-manager run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/formula-team-manager", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/formula-team-manager/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20542"
+BASE_PATH = "/"
